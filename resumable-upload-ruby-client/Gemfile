@@ -5,6 +5,8 @@ ruby '2.3.0'
 gem 'google-api-client', '~> 0.8.3'
 gem 'gcloud', '~> 0.6.2'
 gem 'dotenv'
+gem 'faraday', '0.9.1'
+gem 'httpclient', '2.6.0.1'
 
 group :test do
   gem 'rake'

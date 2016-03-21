@@ -1,20 +1,18 @@
 #!/usr/bin/env ruby
+require 'gcloud'
+require 'dotenv'
+require 'faraday'
 
+# Use httpclient to avoid broken pipe errors with large uploads
+Faraday.default_adapter = :httpclient
+
+# Only add the following statement if using Faraday >= 0.9.2
+# Override gzip middleware with no-op for httpclient
+# Faraday::Response.register_middleware :gzip => Faraday::Response::Middleware
 
 module Samples
   module Storage
     class UploadFile
-      require 'gcloud'
-      require 'dotenv'
-      require 'faraday'
-
-      # Use httpclient to avoid broken pipe errors with large uploads
-      Faraday.default_adapter = :httpclient
-
-      # Only add the following statement if using Faraday >= 0.9.2
-      # Override gzip middleware with no-op for httpclient
-      Faraday::Response.register_middleware :gzip => Faraday::Response::Middleware
-
       def initialize
         Dotenv.load '.env'
       end
