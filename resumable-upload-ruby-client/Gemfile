@@ -2,7 +2,9 @@ source 'https://rubygems.org'
 
 ruby '2.3.0'
 
-gem 'google-api-client'
+gem 'google-api-client', '~> 0.8.3'
+gem 'gcloud', '~> 0.6.2'
+gem 'dotenv'
 
 group :test do
   gem 'rake'

@@ -1,4 +1,4 @@
 require 'rspec'
 
-PROJECT_ID='cloud-samples-tests'
-BUCKET_NAME='cloud-samples-tests'
+PROJECT_ID='chunked-upload-spike'
+BUCKET_NAME='foobar-001'
