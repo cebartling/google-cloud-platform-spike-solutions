@@ -1,7 +1,8 @@
-angular.module 'resumableUploadJavascriptClient'
-  .service 'webDevTec', () ->
-    'ngInject'
-    data = [
+export class WebDevTecService {
+  constructor () {
+    'ngInject';
+
+    this.data = [
       {
         'title': 'AngularJS',
         'url': 'https://angularjs.org/',
@@ -45,15 +46,21 @@ angular.module 'resumableUploadJavascriptClient'
         'logo': 'angular-material.png'
       },
       {
-        'title': 'CoffeeScript',
-        'url': 'http://coffeescript.org/',
-        'description': 'CoffeeScript, \'a little language that compiles into JavaScript\'.',
-        'logo': 'coffeescript.png'
+        'title': 'Sass (Node)',
+        'url': 'https://github.com/sass/node-sass',
+        'description': 'Node.js binding to libsass, the C version of the popular stylesheet preprocessor, Sass.',
+        'logo': 'node-sass.png'
+      },
+      {
+        'title': 'ES6 (Babel formerly 6to5)',
+        'url': 'https://babeljs.io/',
+        'description': 'Turns ES6+ code into vanilla ES5, so you can use next generation features today.',
+        'logo': 'babel.png'
       }
-    ]
+    ];
+  }
 
-    getTec = ->
-      data
-
-    @getTec = getTec
-    return
+  getTec() {
+    return this.data;
+  }
+}

@@ -1,4 +1,11 @@
-@import url(//fonts.googleapis.com/css?family=Roboto+Slab:400,700|Roboto:400,700,700italic,400italic);
+/**
+ *  Do not remove the comment below. It's the markers used by wiredep to inject
+ *  sass dependencies when defined in the bower.json of your dependencies
+ */
+// bower:scss
+// endbower
+
+@import url(http://fonts.googleapis.com/css?family=Roboto+Slab:400,700|Roboto:400,700,700italic,400italic);
 
 @font-face {
   font-family: 'Material Icons';
@@ -63,22 +70,29 @@ section.jumbotron {
   text-align: center;
 
   color: white;
-}
 
-section.jumbotron h1 {
-  font-size: 3em;
+  h1 {
+    font-size: 3em;
+  }
 }
 
 .techs {
   display: flex;
   flex-flow: row wrap;
+
+  md-card {
+    width: 30%;
+
+    img.pull-right {
+      float: right;
+      width: 100px;
+    }
+  }
 }
 
-.techs md-card {
-  width: 30%;
-}
-
-.techs md-card img.pull-right {
-  float: right;
-  width: 100px;
-}
+/**
+ *  Do not remove the comment below. It's the markers used by gulp-inject to inject
+ *  all your sass files automatically
+ */
+// injector
+// endinjector
