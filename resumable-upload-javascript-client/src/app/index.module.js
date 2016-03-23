@@ -1,5 +1,5 @@
-/* global malarkey:false, moment:false */
 
+import {constants} from './index.constants';
 import {config} from './index.config';
 import {routerConfig} from './index.route';
 import {runBlock} from './index.run';
@@ -16,10 +16,12 @@ const dependencies = [
     'ngAria',
     'ui.router',
     'ngMaterial',
-    'toastr'
+    'toastr', 
+    'angular-google-gapi'
 ];
 
 angular.module('resumableUploadJavascriptClient', dependencies)
+    .constant('configuration', constants)
     .config(config)
     .config(routerConfig)
     .run(runBlock)

@@ -1,6 +1,9 @@
 <md-content md-theme="docs-dark" layout-gt-sm="row" layout-padding>
     <md-input-container>
-        <input id="fileUpload" ng-model="file" type="file" class="ng-hide">
+        <input id="fileUpload"
+               type="file"
+               class="ng-hide"
+               onchange="angular.element(this).scope().onChangeFileInput(this)">
         <md-button id="uploadButton"
                    class="md-raised md-primary"
                    ng-click="vm.chooseFile()">
