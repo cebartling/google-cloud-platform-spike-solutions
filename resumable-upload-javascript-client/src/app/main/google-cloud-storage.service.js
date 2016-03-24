@@ -32,7 +32,6 @@ export class GoogleCloudStorageService {
                 this.$log.error(`Unable to start the resumable upload session.`);
             }
         );
-
     }
 
     startResumableUploadSession(blob, bucketName, objectName) {
