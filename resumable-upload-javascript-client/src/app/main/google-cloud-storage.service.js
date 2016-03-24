@@ -88,38 +88,18 @@ export class GoogleCloudStorageService {
     }
 
     uploadSliceData(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
-        let boundary = '-------314159265358979323846';
-        let delimiter = "\r\n--" + boundary + "\r\n";
-        let closeDelimiter = "\r\n--" + boundary + "--";
-
-        let contentType = slice.sliceBlob.type || 'application/mp4';
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info("Content-Range: " + contentRange);
-        let metadata = {
-            'mimeType': contentType
-        };
-        let base64Data = btoa(binaryData);
-        let multipartRequestBody =
-            delimiter +
-            'Content-Type: application/json\r\n\r\n' +
-            JSON.stringify(metadata) +
-            delimiter +
-            'Content-Type: ' + contentType + '\r\n' +
-            'Content-Transfer-Encoding: base64\r\n' +
-            '\r\n' +
-            base64Data +
-            closeDelimiter;
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
-            'params': {'uploadType': 'multipart'},
             'headers': {
-                'X-Upload-Content-Type': contentType,
+                'X-Upload-Content-Type': slice.sliceBlob.type,
                 'X-Upload-Content-Length': entireBlob.size,
-                'Content-Type': `multipart/mixed; boundary="${boundary}"`,
+                'Content-Type': slice.sliceBlob.type,
                 'Content-Range': contentRange
             },
-            'body': multipartRequestBody
+            'body': binaryData
         };
         let promise = this.$window.gapi.client.request(parameters);
         promise.then((response) => {
