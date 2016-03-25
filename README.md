@@ -8,7 +8,9 @@ More information to come.
 
 ### Setup
 
-[[https://github.com/cebartling/google-cloud-platform-spike-solutions/blob/master/resumable-upload-javascript-client/google-cloud-console-credentials.png|alt=Google credentials setup]]
+![Google credentials setup](./resumable-upload-javascript-client/google-cloud-console-credentials.png?raw=true "Google credentials setup")
+
+[[https://github.com/cebartling/google-cloud-platform-spike-solutions/blob/master|alt=Google credentials setup]]
 
 
 
