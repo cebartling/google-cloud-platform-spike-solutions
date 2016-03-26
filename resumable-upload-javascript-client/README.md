@@ -15,5 +15,6 @@
 
 1. Set the browser API key and the OAuth 2.0 Client ID from the previous step in the `resumable-upload-javascript-client/src/app/index.run.js` file.  Save the file.
 1. Run `gulp serve` to start the integrated gulp web server and serve up the JavaScript client.  If all goes well, the JavaScript web app should authenticate and authorize you.  A message toast will be displayed stating that you have signed into Google successfully.
-1. 
+1. From the web application, click the *Choose File* button to bring up a file chooser for selecting a video file to upload. 
+
 
