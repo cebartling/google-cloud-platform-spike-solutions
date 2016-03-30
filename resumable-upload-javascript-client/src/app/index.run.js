@@ -1,7 +1,10 @@
-export function runBlock(GClient, GApi, GAuth, toastr, GoogleCloudStorageService) {
+export function runBlock(toastr, GoogleCloudStorageService) {
     'ngInject';
 
+    // TODO: Add browser API key from cloud console --> API Manager -- Credentials
     let browserApiKey = '';
+
+    // TODO: Add OAuth 2.0 Client ID from cloud console --> API Manager -- Credentials
     let clientId = '';
 
     GoogleCloudStorageService.login(browserApiKey, clientId).then(

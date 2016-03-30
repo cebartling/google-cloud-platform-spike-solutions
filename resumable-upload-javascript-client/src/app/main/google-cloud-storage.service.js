@@ -1,15 +1,16 @@
 export class GoogleCloudStorageService {
-    constructor($log, $q, $window, $timeout, GApi, GAuth, GClient) {
+    constructor($log, $q, $window, $timeout, $rootScope, GApi, GAuth, GClient) {
         'ngInject';
         this.$log = $log;
         this.$q = $q;
         this.$window = $window;
         this.$timeout = $timeout;
+        this.$rootScope = $rootScope;
         this.GApi = GApi;
         this.GAuth = GAuth;
         this.GClient = GClient;
         this.step = (256 * 1024);
-
+        this.STATUS_RESUME_INCOMPLETE = 308;
     }
 
     login(browserApiKey, clientId) {
@@ -62,10 +63,10 @@ export class GoogleCloudStorageService {
     startUpload(resumableUri, blob) {
         let startIndex = 0;
         let endIndex = Math.min(this.step, blob.size);
-        this.processSliceBlob(resumableUri, blob, startIndex, endIndex);
+        this.readBlobSlice(resumableUri, blob, startIndex, endIndex);
     }
 
-    processSliceBlob(resumableUri, blob, startIndex, endIndex) {
+    readBlobSlice(resumableUri, blob, startIndex, endIndex) {
         let sliceBlob = blob.slice(startIndex, endIndex);
         let slice = {start: startIndex, stop: endIndex, sliceBlob: sliceBlob};
         let reader = new FileReader();
@@ -81,36 +82,42 @@ export class GoogleCloudStorageService {
         };
         reader.readAsBinaryString(slice.sliceBlob);
         deferred.promise.then((binaryData) => {
-            this.$log.info(`Binary data size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
-            this.uploadSliceData(resumableUri, blob, slice, binaryData, startIndex, endIndex);
+            this.uploadBlobSlice(resumableUri, blob, slice, binaryData, startIndex, endIndex);
         });
     }
 
-    uploadSliceData(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
-        let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
-        this.$log.info("Content-Range: " + contentRange);
+    uploadBlobSlice(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
+        this.$log.info(`Uploading chunk: chunk size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
             'headers': {
-                'X-Upload-Content-Type': slice.sliceBlob.type,
-                'X-Upload-Content-Length': entireBlob.size,
-                'Content-Type': slice.sliceBlob.type,
-                'Content-Range': contentRange
+                'Content-Type': slice.sliceBlob.type
             },
             'body': binaryData
         };
         let promise = this.$window.gapi.client.request(parameters);
         promise.then((response) => {
-            this.$log.info(`SUCCESS: PUT request to GCS: ${response.toJson()}`);
+            // This should be the final PUT, thus a 200 level status code.
+            this.$log.info(`SUCCESS: PUT request to GCS: ${JSON.stringify(response)}`);
             this.triggerProgressEvent(slice.stop, entireBlob.size);
-            startIndex += this.step;
-            if (startIndex < entireBlob.size) {
-                endIndex = Math.min((startIndex + this.step), entireBlob.size);
-                this.processSliceBlob(resumableUri, entireBlob, startIndex, endIndex);
+        }, (response) => {
+            if (response.status === this.STATUS_RESUME_INCOMPLETE) {
+                this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
+                let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
+                if (captures.length == 2) {
+                    let lastChunkReceived = parseInt(captures[1]);
+                    this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
+                    let nextStartIndex = lastChunkReceived + 1;
+                    if (nextStartIndex < entireBlob.size) {
+                        let nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                        this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
+                    }
+                }
+            } else {
+                this.$log.error(`FAILURE: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
+                this.$rootScope.$emit('chunk:upload:failure', {reason: response.body});
             }
-        }, (error) => {
-            this.$log.error(`FAILURE: PUT request to GCS: ${JSON.stringify(error)}`);
         });
     }
 
@@ -119,8 +126,11 @@ export class GoogleCloudStorageService {
         if (percentLoaded > 100) {
             percentLoaded = 100;
         }
-        this.$log.info('Percent loaded: ' + percentLoaded + '%');
-        //$rootScope.emit('', {});
+        this.$rootScope.$emit('chunk:upload:success', {
+            percentLoaded: percentLoaded,
+            entireBlobSize: entireBlobSize,
+            lastByteUploaded: sliceStop
+        });
     }
 }
 
