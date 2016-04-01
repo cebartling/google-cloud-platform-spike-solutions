@@ -1,5 +1,5 @@
 export class GoogleCloudStorageService {
-    constructor($log, $q, $window, $timeout, $rootScope, GApi, GAuth, GClient) {
+    constructor($log, $q, $window, $timeout, $rootScope, GApi, GAuth, GClient, configuration) {
         'ngInject';
         this.$log = $log;
         this.$q = $q;
@@ -9,21 +9,25 @@ export class GoogleCloudStorageService {
         this.GApi = GApi;
         this.GAuth = GAuth;
         this.GClient = GClient;
+        this.configuration = configuration();
         this.step = (256 * 1024);
         this.STATUS_RESUME_INCOMPLETE = 308;
+        $log.info(`Browser API key: ${this.configuration.browserApiKey}`);
+        $log.info(`OAuth 2.0 client ID: ${this.configuration.clientId}`);
+        $log.info(`Bucket name: ${this.configuration.bucketName}`);
     }
 
-    login(browserApiKey, clientId) {
-        this.GClient.setApiKey(browserApiKey);
+    login() {
+        this.GClient.setApiKey(this.configuration.browserApiKey);
         this.GApi.load('storage', 'v1');
-        this.GAuth.setClient(clientId);
+        this.GAuth.setClient(this.configuration.clientId);
         this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.read_write');
         return this.GAuth.login();
     }
 
     uploadFile(blob) {
         this.$log.info(`File to upload size: ${blob.size}`);
-        let promise = this.startResumableUploadSession(blob, 'foobar-001', blob.name);
+        let promise = this.startResumableUploadSession(blob, blob.name);
         promise.then(
             (response) => {
                 this.$log.info(`Resumable upload URL: ${response.headers.location}`);
@@ -35,7 +39,7 @@ export class GoogleCloudStorageService {
         );
     }
 
-    startResumableUploadSession(blob, bucketName, objectName) {
+    startResumableUploadSession(blob, objectName) {
         let contentType = blob.type || 'application/octet-stream';
         let fileSize = blob.size;
         let metadata = {
@@ -44,7 +48,7 @@ export class GoogleCloudStorageService {
         };
         let payload = JSON.stringify(metadata);
         let parameters = {
-            'path': '/upload/storage/v1/b/' + bucketName + '/o',
+            'path': '/upload/storage/v1/b/' + this.configuration.bucketName + '/o',
             'method': 'POST',
             'params': {
                 'uploadType': 'resumable',
@@ -106,11 +110,11 @@ export class GoogleCloudStorageService {
                 this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
                 let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
                 if (captures.length == 2) {
-                    let lastChunkReceived = parseInt(captures[1]);
+                    const lastChunkReceived = parseInt(captures[1]);
                     this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
-                    let nextStartIndex = lastChunkReceived + 1;
+                    const nextStartIndex = lastChunkReceived + 1;
                     if (nextStartIndex < entireBlob.size) {
-                        let nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                        const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
                         this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
                     }
                 }
@@ -122,10 +126,7 @@ export class GoogleCloudStorageService {
     }
 
     triggerProgressEvent(sliceStop, entireBlobSize) {
-        let percentLoaded = Math.round((sliceStop / entireBlobSize) * 100);
-        if (percentLoaded > 100) {
-            percentLoaded = 100;
-        }
+        const percentLoaded = Math.min(Math.round((sliceStop / entireBlobSize) * 100), 100);
         this.$rootScope.$emit('chunk:upload:success', {
             percentLoaded: percentLoaded,
             entireBlobSize: entireBlobSize,
