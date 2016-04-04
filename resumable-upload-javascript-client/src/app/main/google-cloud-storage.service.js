@@ -51,27 +51,28 @@ export class GoogleCloudStorageService {
             'path': '/upload/storage/v1/b/' + this.configuration.bucketName + '/o',
             'method': 'POST',
             'params': {
+                // 'projection': 'full',
                 'uploadType': 'resumable',
                 'name': encodeURI(objectName)
             },
             'headers': {
                 'X-Upload-Content-Type': contentType,
                 'X-Upload-Content-Length': fileSize,
-                'Content-Type': 'application/json; charset=UTF-8'
-            },
-            'body': payload
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            }
         };
         return this.$window.gapi.client.request(parameters);
     }
 
     startUpload(resumableUri, blob) {
         let startIndex = 0;
-        let endIndex = Math.min(this.step, blob.size);
+        let endIndex = Math.min(this.step - 1, blob.size);
         this.readBlobSlice(resumableUri, blob, startIndex, endIndex);
     }
 
     readBlobSlice(resumableUri, blob, startIndex, endIndex) {
-        let sliceBlob = blob.slice(startIndex, endIndex);
+        this.$log.info(`Read blob slice: start index: ${startIndex}, end index: ${endIndex}`);
+        let sliceBlob = blob.slice(startIndex, endIndex + 1);
         let slice = {start: startIndex, stop: endIndex, sliceBlob: sliceBlob};
         let reader = new FileReader();
         let deferred = this.$q.defer();
@@ -92,11 +93,16 @@ export class GoogleCloudStorageService {
 
     uploadBlobSlice(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
         this.$log.info(`Uploading chunk: chunk size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
+        let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
+        this.$log.info(`Content-Range: ${contentRange}`);
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
             'headers': {
-                'Content-Type': slice.sliceBlob.type
+                'Content-Range': contentRange,
+                'Content-Type': 'video/mp4',
+                'X-Upload-Content-Type':  'video/mp4',
+                'X-Upload-Content-Length': binaryData.length
             },
             'body': binaryData
         };
