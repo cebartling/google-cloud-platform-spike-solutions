@@ -21,7 +21,8 @@ export class GoogleCloudStorageService {
         this.GClient.setApiKey(this.configuration.browserApiKey);
         this.GApi.load('storage', 'v1');
         this.GAuth.setClient(this.configuration.clientId);
-        this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.read_write');
+        // this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.read_write');
+        this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.full_control');
         return this.GAuth.login();
     }
 
@@ -51,7 +52,7 @@ export class GoogleCloudStorageService {
             'path': '/upload/storage/v1/b/' + this.configuration.bucketName + '/o',
             'method': 'POST',
             'params': {
-                // 'projection': 'full',
+                'projection': 'full',
                 'uploadType': 'resumable',
                 'name': encodeURI(objectName)
             },
@@ -93,6 +94,7 @@ export class GoogleCloudStorageService {
 
     uploadBlobSlice(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
         this.$log.info(`Uploading chunk: chunk size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
+        // let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
         let parameters = {
