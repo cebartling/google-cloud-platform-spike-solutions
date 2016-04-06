@@ -90,7 +90,6 @@ export class GoogleCloudStorageService {
 
     uploadBlobSlice(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
         this.$log.info(`Uploading chunk: chunk size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
-        // let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
         let parameters = {
@@ -98,9 +97,7 @@ export class GoogleCloudStorageService {
             'method': 'PUT',
             'headers': {
                 'Content-Range': contentRange,
-                'Content-Type': 'video/mp4',
-                'X-Upload-Content-Type':  'video/mp4',
-                'X-Upload-Content-Length': binaryData.length
+                'Content-Type': 'video/mp4'
             },
             'body': binaryData
         };
