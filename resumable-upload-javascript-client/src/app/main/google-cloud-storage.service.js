@@ -12,17 +12,13 @@ export class GoogleCloudStorageService {
         this.configuration = configuration();
         this.step = (256 * 1024);
         this.STATUS_RESUME_INCOMPLETE = 308;
-        $log.info(`Browser API key: ${this.configuration.browserApiKey}`);
-        $log.info(`OAuth 2.0 client ID: ${this.configuration.clientId}`);
-        $log.info(`Bucket name: ${this.configuration.bucketName}`);
     }
 
     login() {
         this.GClient.setApiKey(this.configuration.browserApiKey);
         this.GApi.load('storage', 'v1');
         this.GAuth.setClient(this.configuration.clientId);
-        // this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.read_write');
-        this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.full_control');
+        this.GAuth.setScope('https://www.googleapis.com/auth/devstorage.read_write');
         return this.GAuth.login();
     }
 
