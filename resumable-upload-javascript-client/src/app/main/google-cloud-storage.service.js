@@ -63,7 +63,7 @@ export class GoogleCloudStorageService {
 
     startUpload(resumableUri, blob) {
         let startIndex = 0;
-        let endIndex = Math.min(this.step - 1, blob.size);
+        let endIndex = Math.min(this.step - 1, blob.size - 1);
         this.readBlobSlice(resumableUri, blob, startIndex, endIndex);
     }
 
@@ -90,17 +90,18 @@ export class GoogleCloudStorageService {
 
     uint8ToString(uint8ArrayBuffer) {
         let i, length, out = '';
-        for (i = 0, length = uint8ArrayBuffer.length; i < length; i += 1) {
+        for (i = 0, length = uint8ArrayBuffer.byteLength; i < length; i += 1) {
             out += String.fromCharCode(uint8ArrayBuffer[i]);
         }
         return out;
     }
 
     uploadBlobSlice(resumableUri, entireBlob, slice, uint8ArrayBuffer, startIndex, endIndex) {
-        this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.length} bytes, start: ${startIndex}, end: ${endIndex}`);
+        this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.byteLength} bytes, start: ${startIndex}, end: ${endIndex}`);
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
         const base64EncodedPayload = btoa(this.uint8ToString(uint8ArrayBuffer));
+        this.$log.info(`Content-Length: ${base64EncodedPayload.length}`);
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
@@ -118,22 +119,21 @@ export class GoogleCloudStorageService {
         }, (response) => {
             if (response.status === this.STATUS_RESUME_INCOMPLETE) {
                 this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
-                // this.triggerProgressEvent(slice.stop, entireBlob.size);
-                // const nextStartIndex = slice.stop + 1;
-                // if (nextStartIndex < entireBlob.size) {
-                //     const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
-                //     this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
-                // }
                 this.$log.info(`Range response header: ${response.headers.range}`);
-                let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
-                if (captures != null && captures.length == 2) {
-                    const lastChunkReceived = parseInt(captures[1]);
-                    this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
-                    const nextStartIndex = lastChunkReceived + 1;
-                    if (nextStartIndex < entireBlob.size) {
-                        const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
-                        this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
+                if (response.headers.range !== undefined && response.headers.range !== null) {
+                    let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
+                    if (captures != null && captures.length == 2) {
+                        const lastChunkReceived = parseInt(captures[1]);
+                        this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
+                        const nextStartIndex = lastChunkReceived + 1;
+                        if (nextStartIndex < entireBlob.size) {
+                            const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size - 1);
+                            this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
+                        }
                     }
+                } else {
+                    this.$log.error(`FAILURE: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
+                    this.$rootScope.$emit('chunk:upload:failure', {reason: response.body});
                 }
             } else {
                 this.$log.error(`FAILURE: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
