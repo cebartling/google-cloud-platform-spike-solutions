@@ -82,14 +82,22 @@ export class GoogleCloudStorageService {
         reader.onabort = (abort) => {
             deferred.reject(abort);
         };
-        reader.readAsBinaryString(slice.sliceBlob);
-        deferred.promise.then((binaryData) => {
-            this.uploadBlobSlice(resumableUri, blob, slice, binaryData, startIndex, endIndex);
+        reader.readAsArrayBuffer(slice.sliceBlob);
+        deferred.promise.then((uint8ArrayBuffer) => {
+            this.uploadBlobSlice(resumableUri, blob, slice, uint8ArrayBuffer, startIndex, endIndex);
         });
     }
 
-    uploadBlobSlice(resumableUri, entireBlob, slice, binaryData, startIndex, endIndex) {
-        this.$log.info(`Uploading chunk: chunk size: ${binaryData.length} bytes, start: ${startIndex}, end: ${endIndex}`);
+    uint8ToString(uint8ArrayBuffer) {
+        let i, length, out = '';
+        for (i = 0, length = uint8ArrayBuffer.length; i < length; i += 1) {
+            out += String.fromCharCode(uint8ArrayBuffer[i]);
+        }
+        return out;
+    }
+
+    uploadBlobSlice(resumableUri, entireBlob, slice, uint8ArrayBuffer, startIndex, endIndex) {
+        this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.length} bytes, start: ${startIndex}, end: ${endIndex}`);
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
         let parameters = {
@@ -100,7 +108,7 @@ export class GoogleCloudStorageService {
                 'Content-Transfer-Encoding': 'base64',
                 'Content-Type': 'video/mp4'
             },
-            'body': btoa(binaryData)
+            'body': btoa(this.uint8ToString(uint8ArrayBuffer))
         };
         let promise = this.$window.gapi.client.request(parameters);
         promise.then((response) => {
@@ -110,16 +118,22 @@ export class GoogleCloudStorageService {
         }, (response) => {
             if (response.status === this.STATUS_RESUME_INCOMPLETE) {
                 this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
-                let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
-                if (captures.length == 2) {
-                    const lastChunkReceived = parseInt(captures[1]);
-                    this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
-                    const nextStartIndex = lastChunkReceived + 1;
-                    if (nextStartIndex < entireBlob.size) {
-                        const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
-                        this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
-                    }
+                this.triggerProgressEvent(slice.stop, entireBlob.size);
+                const nextStartIndex = slice.stop + 1;
+                if (nextStartIndex < entireBlob.size) {
+                    const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                    this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
                 }
+                // let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
+                // if (captures != null && captures.length == 2) {
+                //     const lastChunkReceived = parseInt(captures[1]);
+                //     this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
+                //     const nextStartIndex = lastChunkReceived + 1;
+                //     if (nextStartIndex < entireBlob.size) {
+                //         const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                //         this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
+                //     }
+                // }
             } else {
                 this.$log.error(`FAILURE: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
                 this.$rootScope.$emit('chunk:upload:failure', {reason: response.body});
