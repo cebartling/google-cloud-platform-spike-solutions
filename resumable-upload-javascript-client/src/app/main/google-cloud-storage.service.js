@@ -100,15 +100,15 @@ export class GoogleCloudStorageService {
         this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.length} bytes, start: ${startIndex}, end: ${endIndex}`);
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
+        const base64EncodedPayload = btoa(this.uint8ToString(uint8ArrayBuffer));
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
             'headers': {
                 'Content-Range': contentRange,
-                'Content-Transfer-Encoding': 'base64',
-                'Content-Type': 'video/mp4'
+                'Content-Encoding': 'base64'
             },
-            'body': btoa(this.uint8ToString(uint8ArrayBuffer))
+            'body': base64EncodedPayload
         };
         let promise = this.$window.gapi.client.request(parameters);
         promise.then((response) => {
@@ -118,22 +118,23 @@ export class GoogleCloudStorageService {
         }, (response) => {
             if (response.status === this.STATUS_RESUME_INCOMPLETE) {
                 this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
-                this.triggerProgressEvent(slice.stop, entireBlob.size);
-                const nextStartIndex = slice.stop + 1;
-                if (nextStartIndex < entireBlob.size) {
-                    const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
-                    this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
-                }
-                // let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
-                // if (captures != null && captures.length == 2) {
-                //     const lastChunkReceived = parseInt(captures[1]);
-                //     this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
-                //     const nextStartIndex = lastChunkReceived + 1;
-                //     if (nextStartIndex < entireBlob.size) {
-                //         const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
-                //         this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
-                //     }
+                // this.triggerProgressEvent(slice.stop, entireBlob.size);
+                // const nextStartIndex = slice.stop + 1;
+                // if (nextStartIndex < entireBlob.size) {
+                //     const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                //     this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
                 // }
+                this.$log.info(`Range response header: ${response.headers.range}`);
+                let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
+                if (captures != null && captures.length == 2) {
+                    const lastChunkReceived = parseInt(captures[1]);
+                    this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
+                    const nextStartIndex = lastChunkReceived + 1;
+                    if (nextStartIndex < entireBlob.size) {
+                        const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
+                        this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
+                    }
+                }
             } else {
                 this.$log.error(`FAILURE: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
                 this.$rootScope.$emit('chunk:upload:failure', {reason: response.body});
