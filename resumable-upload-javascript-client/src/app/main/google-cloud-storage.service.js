@@ -97,9 +97,10 @@ export class GoogleCloudStorageService {
             'method': 'PUT',
             'headers': {
                 'Content-Range': contentRange,
+                'Content-Transfer-Encoding': 'base64',
                 'Content-Type': 'video/mp4'
             },
-            'body': binaryData
+            'body': btoa(binaryData)
         };
         let promise = this.$window.gapi.client.request(parameters);
         promise.then((response) => {
