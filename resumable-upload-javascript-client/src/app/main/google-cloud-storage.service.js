@@ -37,7 +37,7 @@ export class GoogleCloudStorageService {
     }
 
     startResumableUploadSession(blob, objectName) {
-        let contentType = blob.type || 'application/octet-stream';
+        let contentType = blob.type;
         let fileSize = blob.size;
         let metadata = {
             'name': objectName,
@@ -63,14 +63,13 @@ export class GoogleCloudStorageService {
 
     startUpload(resumableUri, blob) {
         let startIndex = 0;
-        let endIndex = Math.min(this.step - 1, blob.size - 1);
+        let endIndex = Math.min(this.step, blob.size);
         this.readBlobSlice(resumableUri, blob, startIndex, endIndex);
     }
 
     readBlobSlice(resumableUri, blob, startIndex, endIndex) {
-        this.$log.info(`Read blob slice: start index: ${startIndex}, end index: ${endIndex}`);
-        let sliceBlob = blob.slice(startIndex, endIndex + 1);
-        let slice = {start: startIndex, stop: endIndex, sliceBlob: sliceBlob};
+        let sliceBlob = blob.slice(startIndex, endIndex); // Blob.slice(start, end) slices from start to end - 1.
+        let slice = {start: startIndex, stop: endIndex - 1, sliceBlob: sliceBlob};
         let reader = new FileReader();
         let deferred = this.$q.defer();
         reader.onload = () => {
@@ -84,24 +83,16 @@ export class GoogleCloudStorageService {
         };
         reader.readAsArrayBuffer(slice.sliceBlob);
         deferred.promise.then((uint8ArrayBuffer) => {
-            this.uploadBlobSlice(resumableUri, blob, slice, uint8ArrayBuffer, startIndex, endIndex);
+            this.uploadBlobSlice(resumableUri, blob, slice, uint8ArrayBuffer);
         });
     }
 
-    uint8ToString(uint8ArrayBuffer) {
-        let i, length, out = '';
-        for (i = 0, length = uint8ArrayBuffer.byteLength; i < length; i += 1) {
-            out += String.fromCharCode(uint8ArrayBuffer[i]);
-        }
-        return out;
-    }
-
-    uploadBlobSlice(resumableUri, entireBlob, slice, uint8ArrayBuffer, startIndex, endIndex) {
-        this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.byteLength} bytes, start: ${startIndex}, end: ${endIndex}`);
+    uploadBlobSlice(resumableUri, entireBlob, slice, uint8ArrayBuffer) {
+        this.$log.info(`Uploading chunk: chunk size: ${uint8ArrayBuffer.byteLength} bytes, start: ${slice.start}, end: ${slice.stop}`);
         let contentRange = 'bytes ' + slice.start + '-' + slice.stop + '/' + entireBlob.size;
         this.$log.info(`Content-Range: ${contentRange}`);
-        const base64EncodedPayload = btoa(this.uint8ToString(uint8ArrayBuffer));
-        this.$log.info(`Content-Length: ${base64EncodedPayload.length}`);
+        const base64EncodedPayload = StringView.bytesToBase64(new Uint8Array(uint8ArrayBuffer));
+        this.$log.info(`Content-Length: ${base64EncodedPayload.length} bytes`);
         let parameters = {
             'path': resumableUri,
             'method': 'PUT',
@@ -119,7 +110,7 @@ export class GoogleCloudStorageService {
         }, (response) => {
             if (response.status === this.STATUS_RESUME_INCOMPLETE) {
                 this.$log.info(`SUCCESS: Chunked transfer PUT request to GCS: ${JSON.stringify(response)}`);
-                this.$log.info(`Range response header: ${response.headers.range}`);
+                // this.$log.info(`Range response header: ${response.headers.range}`);
                 if (response.headers.range !== undefined && response.headers.range !== null) {
                     let captures = /bytes=\d+\-(\d+)/.exec(response.headers.range);
                     if (captures != null && captures.length == 2) {
@@ -127,7 +118,7 @@ export class GoogleCloudStorageService {
                         this.triggerProgressEvent(lastChunkReceived, entireBlob.size);
                         const nextStartIndex = lastChunkReceived + 1;
                         if (nextStartIndex < entireBlob.size) {
-                            const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size - 1);
+                            const nextEndIndex = Math.min((nextStartIndex + this.step), entireBlob.size);
                             this.readBlobSlice(resumableUri, entireBlob, nextStartIndex, nextEndIndex);
                         }
                     }
